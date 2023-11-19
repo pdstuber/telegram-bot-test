@@ -32,23 +32,29 @@ func (b *Bot) HandleUpdates(ctx context.Context, updatesChannel tgbotapi.Updates
 				continue
 			}
 
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "")
-
-			// Extract the command from the Message.
-			switch update.Message.Command() {
-			case "help":
-				msg.Text = "I understand /sayhi and /status."
-			case "sayhi":
-				msg.Text = "Hi :)"
-			case "status":
-				msg.Text = "I'm ok."
-			default:
-				msg.Text = "I don't know that command"
-			}
+			msg := b.handleCommand(update.Message)
 
 			if _, err := b.botAPI.Send(msg); err != nil {
 				log.Panic(err)
 			}
 		}
 	}
+}
+
+func (b *Bot) handleCommand(message *tgbotapi.Message) tgbotapi.MessageConfig {
+	msg := tgbotapi.NewMessage(message.Chat.ID, "")
+
+	// Extract the command from the Message.
+	switch message.Command() {
+	case "help":
+		msg.Text = "I understand /sayhi and /status."
+	case "sayhi":
+		msg.Text = "Hi :)"
+	case "status":
+		msg.Text = "I'm ok."
+	default:
+		msg.Text = "I don't know that command"
+	}
+
+	return msg
 }

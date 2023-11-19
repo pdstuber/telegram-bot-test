@@ -20,7 +20,7 @@ COPY . .
 RUN go mod download
 RUN go mod verify
 
-RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -ldflags="-w -s" -o /go/bin/telegram-bot-test
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -mod vendor -ldflags="-w -s" -o /go/bin/telegram-bot-test
 
 FROM --platform=${TARGETPLATFORM:-linux/amd64} scratch
 
