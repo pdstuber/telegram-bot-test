@@ -31,18 +31,17 @@ var runCmd = &cobra.Command{
 
 		log.Printf("Authorized on account %s", botAPI.Self.UserName)
 
-		u := tgbotapi.NewUpdate(0)
-		u.Timeout = 60
-
-		updates := botAPI.GetUpdatesChan(u)
-
 		bot := bot.New(botAPI)
 
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 		defer stop()
 
-		go bot.HandleUpdates(ctx, updates)
+		bot.Start(ctx)
+
+		log.Println("after start")
+
 		<-ctx.Done()
+		bot.Stop()
 	},
 }
 
