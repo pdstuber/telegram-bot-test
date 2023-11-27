@@ -1,9 +1,10 @@
-FROM golang@sha256:f475434ea2047a83e9ba02a1da8efc250fa6b2ed0e9e8e4eb8c5322ea6997795 as builder
-
-RUN apk update && apk add --no-cache git ca-certificates && update-ca-certificates
+# golang:1.21-alpine3.18
+FROM --platform=${TARGETPLATFORM:-linux/amd64} golang:1.21.4-bookworm as builder
 
 ENV USER=appuser
 ENV UID=10001
+
+ENV LIBTENSORFLOW_FILENAME=libtensorflow-aarch64.tar.gz
 
 WORKDIR /app
 
@@ -15,20 +16,34 @@ RUN adduser \
     --uid "$UID" \
     "$USER"
 
-COPY . .
+ADD build/${LIBTENSORFLOW_FILENAME} /usr/local/
+
+COPY go.mod .
+COPY go.sum .
 
 RUN go mod download
 RUN go mod verify
 
-RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -mod vendor -ldflags="-w -s" -o /go/bin/telegram-bot-test
+RUN ldconfig /usr/local/lib
 
-FROM --platform=${TARGETPLATFORM:-linux/amd64} scratch
+COPY . .
+RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -o /go/bin/telegram-bot-test
+
+FROM --platform=${TARGETPLATFORM:-linux/amd64} debian:bookworm-slim
 
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /etc/passwd /etc/passwd
 COPY --from=builder /etc/group /etc/group
 
+COPY --from=builder /usr/local/lib/libtensorflow* /usr/local/lib/
+COPY --from=builder /usr/local/include/tensorflow /usr/local/include/
+
+RUN ldconfig /usr/local/lib
+
 COPY --from=builder /go/bin/telegram-bot-test /go/bin/telegram-bot-test
+
+RUN mkdir /model
+ADD build/model/* /model/
 
 USER appuser:appuser
 

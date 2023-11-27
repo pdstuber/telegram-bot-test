@@ -5,12 +5,15 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 
-	bot "github.com/pdstuber/telegram-bot-test/internal"
+	"github.com/gocarina/gocsv"
+	"github.com/pdstuber/telegram-bot-test/internal/bot"
+	"github.com/pdstuber/telegram-bot-test/internal/predict/prediction/tensorflow"
 	"github.com/spf13/cobra"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -30,8 +33,23 @@ var runCmd = &cobra.Command{
 		botAPI.Debug = true
 
 		log.Printf("Authorized on account %s", botAPI.Self.UserName)
+		var labels []tensorflow.Label
 
-		bot := bot.New(botAPI)
+		modelPath := os.Getenv("MODEL_PATH")
+		model, err := os.ReadFile(fmt.Sprintf("%s/model.pb", modelPath))
+		if err != nil {
+			log.Panic(err)
+		}
+		labelBytes, err := os.ReadFile(fmt.Sprintf("%s/labels.csv", modelPath))
+		if err != nil {
+			log.Panic(err)
+		}
+
+		if err := gocsv.UnmarshalBytes(labelBytes, &labels); err != nil {
+			log.Fatalf("could not unmarshal labels csv: %v\n", err)
+		}
+
+		bot := bot.New(botAPI, tensorflow.New(model, labels))
 
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 		defer stop()
