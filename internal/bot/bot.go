@@ -20,15 +20,15 @@ import (
 )
 
 const (
-	defaultColorChannels = 3
-	targetImageSize      = 256
-	targetImageMime      = "image/jpeg"
-	targetImageQuality   = 99
+	targetImageSize    = 256
+	targetImageMime    = "image/jpeg"
+	targetImageQuality = 99
 )
 
 // A ImagePredictor predicts the class of an image
 type ImagePredictor interface {
-	PredictImage(imageBytes []byte, colorChannels int64) (*model.Result, error)
+	PredictImage(imageBytes []byte) (*model.Result, error)
+	Stop() error
 }
 
 type Bot struct {
@@ -45,7 +45,7 @@ func New(botAPI *tgbotapi.BotAPI, imagePredictor ImagePredictor) *Bot {
 	return &Bot{
 		botAPI:          botAPI,
 		wg:              &sync.WaitGroup{},
-		workers:         16,
+		workers:         4,
 		fetchBuffer:     100,
 		shutdownChannel: make(chan interface{}),
 		httpClient:      http.DefaultClient,
@@ -67,6 +67,7 @@ func (b *Bot) Stop() {
 	log.Println("stopping bot")
 	close(b.shutdownChannel)
 	b.wg.Wait()
+	b.imagePredictor.Stop()
 	log.Println("stopping bot done")
 }
 
@@ -116,7 +117,7 @@ func (b *Bot) StartWorkers(ctx context.Context, ch chan *tgbotapi.Update) {
 				msg := b.handlePhoto(ctx, update.Message)
 
 				if _, err := b.botAPI.Send(msg); err != nil {
-					log.Panic(err)
+					log.Println(err)
 				}
 			}
 			b.wg.Done()
@@ -157,14 +158,12 @@ func (b *Bot) handlePhoto(ctx context.Context, message *tgbotapi.Message) tgbota
 		return tgbotapi.NewMessage(message.Chat.ID, "There was an error, I'm sorry :(")
 	}
 
-	log.Printf("photo size: %d from url: %s\n", len(photoBytes), link)
-
 	resizedBytes, err := resizeImage(photoBytes)
 	if err != nil {
 		log.Println(err)
 		return tgbotapi.NewMessage(message.Chat.ID, "There was an error, I'm sorry :(")
 	}
-	result, err := b.imagePredictor.PredictImage(resizedBytes, defaultColorChannels)
+	result, err := b.imagePredictor.PredictImage(resizedBytes)
 
 	if err != nil {
 		log.Println(err)

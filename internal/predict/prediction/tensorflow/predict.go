@@ -26,14 +26,17 @@ type Label struct {
 
 // Service predicts images using an imported tensorflow model
 type Service struct {
-	inputOperation  *tf.Operation
-	outputOperation *tf.Operation
-	session         *tf.Session
-	labels          []Label
+	inputOperation       *tf.Operation
+	outputOperation      *tf.Operation
+	session              *tf.Session
+	normalizationSession *tf.Session
+	normalizationInput   *tf.Output
+	normalizationOutput  *tf.Output
+	labels               []Label
 }
 
 // New creates a new service instance from the given model and labels
-func New(model []byte, labels []Label) *Service {
+func New(model []byte, labels []Label, colorChannels int64) *Service {
 	graph, err := createTensorFlowGraphFromModel(model)
 
 	if err != nil {
@@ -48,12 +51,23 @@ func New(model []byte, labels []Label) *Service {
 		log.Fatalf("could not create tensorflow session: %v/n", err)
 	}
 
-	return &Service{inputOperation, outputOperation, session, labels}
+	// Creates a tensorflow graph to decode the jpeg image
+	normalizationGraph, normalizationInput, normalizationOutput, err := decodeJPEGGraph(colorChannels)
+	if err != nil {
+		log.Fatalf("could not create tensorflow graph: %v/n", err)
+	}
+	// Execute that graph to decode this one image
+	normalizationSession, err := tf.NewSession(normalizationGraph, nil)
+	if err != nil {
+		log.Fatalf("could not create tensorflow session: %v/n", err)
+	}
+
+	return &Service{inputOperation, outputOperation, session, normalizationSession, normalizationInput, normalizationOutput, labels}
 }
 
 // PredictImage with the inported tensorflow model and labels
-func (s *Service) PredictImage(imageBytes []byte, colorChannels int64) (*model.Result, error) {
-	inputTensor, err := s.makeTensorFromImage(imageBytes, colorChannels)
+func (s *Service) PredictImage(imageBytes []byte) (*model.Result, error) {
+	inputTensor, err := s.makeTensorFromImage(imageBytes)
 
 	if err != nil {
 		return nil, errors.Wrap(err, errorTextCouldNotProcessInputImage)
@@ -82,7 +96,6 @@ func (s *Service) PredictImage(imageBytes []byte, colorChannels int64) (*model.R
 }
 
 func createTensorFlowGraphFromModel(model []byte) (*tf.Graph, error) {
-
 	// Construct an in-memory graph from the serialized form.
 	graph := tf.NewGraph()
 	if err := graph.Import(model, ""); err != nil {
@@ -92,6 +105,13 @@ func createTensorFlowGraphFromModel(model []byte) (*tf.Graph, error) {
 	return graph, nil
 }
 
-func (s *Service) Close() {
-	_ = s.session.Close()
+func (s *Service) Stop() error {
+	if err := s.session.Close(); err != nil {
+		return err
+	}
+	if err := s.normalizationSession.Close(); err != nil {
+		return err
+	}
+
+	return nil
 }

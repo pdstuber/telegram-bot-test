@@ -14,4 +14,4 @@ build:
 
 .PHONY: run
 run:
-	docker run -e MODEL_PATH="/model" -e TELEGRAM_BOT_TOKEN="6853139137:AAHt9ab7_9dmcC-zq0cF4CbCrAaSxQKTPu8" telegram-bot-test:latest run
+	docker run -e MODEL_PATH="/model" -e TELEGRAM_BOT_TOKEN telegram-bot-test:latest run

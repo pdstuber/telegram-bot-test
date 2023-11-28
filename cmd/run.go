@@ -19,6 +19,8 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
+const defaultColorChannels = 3
+
 // runCmd represents the run command
 var runCmd = &cobra.Command{
 	Use:   "run",
@@ -49,7 +51,7 @@ var runCmd = &cobra.Command{
 			log.Fatalf("could not unmarshal labels csv: %v\n", err)
 		}
 
-		bot := bot.New(botAPI, tensorflow.New(model, labels))
+		bot := bot.New(botAPI, tensorflow.New(model, labels, defaultColorChannels))
 
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 		defer stop()

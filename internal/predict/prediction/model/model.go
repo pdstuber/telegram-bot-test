@@ -22,7 +22,7 @@ func (r *Result) String() string {
 		suffix = "this is not a cat"
 	}
 
-	return fmt.Sprintf("I'm %d %% sure that %s", int(r.Probability*100), suffix)
+	return fmt.Sprintf("I'm pretty sure %s", suffix)
 }
 
 // the ErrorResult of the prediction
