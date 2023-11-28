@@ -4,7 +4,9 @@ FROM --platform=${TARGETPLATFORM:-linux/amd64} golang:1.21.4-bookworm as builder
 ENV USER=appuser
 ENV UID=10001
 
-ENV LIBTENSORFLOW_FILENAME=libtensorflow-aarch64.tar.gz
+ARG TARGETARCH TARGETOS
+
+ENV LIBTENSORFLOW_FILENAME="libtensorflow-2.14.1-${TARGETARCH}.tar.gz"
 
 WORKDIR /app
 
@@ -26,8 +28,10 @@ RUN go mod verify
 
 RUN ldconfig /usr/local/lib
 
-COPY . .
-RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -o /go/bin/telegram-bot-test
+ADD . .
+
+RUN --mount=type=cache,target="/root/.cache/go-build" \
+    GOOS=$TARGETOS GOARCH=$TARGETARCH GOCACHE=/root/.cache/go-build go build -o /go/bin/telegram-bot-test
 
 FROM --platform=${TARGETPLATFORM:-linux/amd64} debian:bookworm-slim
 

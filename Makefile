@@ -6,7 +6,7 @@ IMAGE ?= telegram-bot-test:latest
 build:
 	@docker buildx create --use --name=crossplat --node=crossplat && \
 	docker buildx build \
-		--progress=plain \
+		--progress auto \
 		--output "type=docker,push=false" \
 		--tag $(IMAGE) \
 		--file build/Dockerfile \
